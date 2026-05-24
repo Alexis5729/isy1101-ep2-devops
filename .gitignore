@@ -1,0 +1,10 @@
+node_modules/
+dist/
+target/
+.mvn/
+*.pem
+ec2-user@*
+front_despacho_clean/
+.DS_Store
+.idea/
+.vscode/
