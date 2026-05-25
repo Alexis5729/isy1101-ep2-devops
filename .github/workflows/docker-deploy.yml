@@ -1,4 +1,4 @@
-name: Docker Build and Push
+name: Docker Build Push and Deploy
 
 on:
   push:
@@ -19,29 +19,52 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # FRONTEND
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
       - name: Build frontend
-        run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/frontend-despacho:latest ./front_despacho
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/frontend-despacho:latest ./front_despacho
 
       - name: Push frontend
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/frontend-despacho:latest
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/frontend-despacho:latest
 
-      # BACKEND DESPACHO
       - name: Build backend despacho
-        run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/backend-despacho:latest ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/backend-despacho:latest ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
 
       - name: Push backend despacho
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/backend-despacho:latest
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/backend-despacho:latest
 
-      # BACKEND VENTAS
       - name: Build backend ventas
-        run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/backend-ventas:latest ./back-Ventas_SpringBoot/Springboot-API-REST
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/backend-ventas:latest ./back-Ventas_SpringBoot/Springboot-API-REST
 
       - name: Push backend ventas
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/backend-ventas:latest
+
+      - name: Deploy frontend en EC2 por SSM
         run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/backend-ventas:latest
+          aws ssm send-command \
+            --region ${{ secrets.AWS_REGION }} \
+            --document-name "AWS-RunShellScript" \
+            --instance-ids "i-078d7a0e167f0d495" \
+            --parameters commands='[
+              "cd /home/ec2-user/tutorial-frontend",
+              "docker-compose pull",
+              "docker-compose up -d"
+            ]'
+
+      - name: Deploy backend en EC2 por SSM
+        run: |
+          aws ssm send-command \
+            --region ${{ secrets.AWS_REGION }} \
+            --document-name "AWS-RunShellScript" \
+            --instance-ids "i-0518705da5d9472fe" \
+            --parameters commands='[
+              "cd /home/ec2-user/tutorial-backend",
+              "docker-compose pull",
+              "docker-compose up -d"
+            ]'
